@@ -1,103 +1,202 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import React, { useState } from "react";
+import ReturnList from "../components/ReturnList";
+import { ReturnRequest } from "../types/types";
+import { v4 as uuidv4 } from "uuid";
+
+const initialData: ReturnRequest[] = [
+  {
+    orderId: "ORD123",
+    customerName: "ABC Company",
+    returnDate: "2025-10-01",
+    palletCount: 5,
+    status: "Pending",
+    remarks: "Handle with care",
+  },
+  {
+    orderId: "ORD124",
+    customerName: "XYZ Ltd.",
+    returnDate: "2025-09-28",
+    palletCount: 2,
+    status: "Completed",
+  },
+];
+
+export default function Dashboard() {
+  const [returns, setReturns] = useState<ReturnRequest[]>(initialData);
+  const [search, setSearch] = useState("");
+
+  // Form state
+  const [customerName, setCustomerName] = useState("");
+  const [returnDate, setReturnDate] = useState("");
+  const [palletCount, setPalletCount] = useState<number>(1);
+  const [remarks, setRemarks] = useState("");
+
+  // Collapsible form state
+  const [showForm, setShowForm] = useState(true);
+
+  // Filtered list for search
+  const filteredData = returns.filter(
+    (item) =>
+      item.customerName.toLowerCase().includes(search.toLowerCase()) ||
+      item.orderId.toLowerCase().includes(search.toLowerCase())
+  );
+
+  // Add new return
+  const handleAddReturn = (e: React.FormEvent) => {
+    e.preventDefault();
+    const newReturn: ReturnRequest = {
+      orderId: `ORD-${uuidv4().slice(0, 8)}`,
+      customerName,
+      returnDate,
+      palletCount,
+      status: "Pending",
+      remarks: remarks || undefined,
+    };
+    setReturns([newReturn, ...returns]);
+    setCustomerName("");
+    setReturnDate("");
+    setPalletCount(1);
+    setRemarks("");
+  };
+
+  // Change status handler
+  const handleStatusChange = (id: string, status: "Completed" | "Rejected") => {
+    const updatedReturns = returns.map((r) =>
+      r.orderId === id ? { ...r, status } : r
+    );
+    setReturns(updatedReturns);
+  };
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Sidebar */}
+      <aside className="w-64 bg-gray-800 text-white p-6 flex-shrink-0">
+        <h2 className="text-2xl font-bold mb-6">Dashboard</h2>
+        <nav className="space-y-2">
+          <a href="#" className="block py-2 px-3 rounded hover:bg-gray-700">
+            Home
+          </a>
+          <a href="#" className="block py-2 px-3 rounded hover:bg-gray-700">
+            Returns
+          </a>
+          <a href="#" className="block py-2 px-3 rounded hover:bg-gray-700">
+            Reports
+          </a>
+        </nav>
+      </aside>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+      {/* Main content */}
+      <main className="flex-1 p-8">
+        {/* Header + search */}
+        <header className="mb-6 flex flex-col sm:flex-row sm:justify-between sm:items-center">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-4 sm:mb-0">
+            Pallet Return Dashboard
+          </h1>
+
+          <input
+            type="text"
+            placeholder="Search by customer or order ID"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full sm:w-64 p-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+          />
+        </header>
+
+        {/* Stats cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="p-4 bg-blue-500 text-white rounded-lg shadow flex flex-col items-center">
+            <span className="text-2xl font-bold">{returns.length}</span>
+            <span>Total Returns</span>
+          </div>
+
+          <div className="p-4 bg-yellow-500 text-white rounded-lg shadow flex flex-col items-center">
+            <span className="text-2xl font-bold">
+              {returns.filter((r) => r.status === "Pending").length}
+            </span>
+            <span>Pending</span>
+          </div>
+
+          <div className="p-4 bg-green-500 text-white rounded-lg shadow flex flex-col items-center">
+            <span className="text-2xl font-bold">
+              {returns.filter((r) => r.status === "Completed").length}
+            </span>
+            <span>Completed</span>
+          </div>
+
+          <div className="p-4 bg-red-500 text-white rounded-lg shadow flex flex-col items-center">
+            <span className="text-2xl font-bold">
+              {returns.filter((r) => r.status === "Rejected").length}
+            </span>
+            <span>Rejected</span>
+          </div>
         </div>
+
+        {/* Toggle Add Return Form */}
+        <button
+          onClick={() => setShowForm(!showForm)}
+          className="mb-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors duration-200"
+        >
+          {showForm ? "Hide Form" : "Add New Return"}
+        </button>
+
+        {/* Add Return Form */}
+        {showForm && (
+          <form
+            onSubmit={handleAddReturn}
+            className="mb-6 bg-white dark:bg-gray-800 p-6 rounded-lg shadow transition-all duration-300"
+          >
+            <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-gray-100">
+              Add New Return
+            </h2>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <input
+                type="text"
+                placeholder="Customer Name"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                required
+                className="p-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+              />
+              <input
+                type="date"
+                value={returnDate}
+                onChange={(e) => setReturnDate(e.target.value)}
+                required
+                className="p-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+              />
+              <input
+                type="number"
+                placeholder="Pallet Count"
+                value={palletCount}
+                onChange={(e) => setPalletCount(Number(e.target.value))}
+                min={1}
+                required
+                className="p-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+              />
+              <input
+                type="text"
+                placeholder="Remarks (optional)"
+                value={remarks}
+                onChange={(e) => setRemarks(e.target.value)}
+                className="p-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors duration-200"
+            >
+              Add Return
+            </button>
+          </form>
+        )}
+
+        {/* Return requests list */}
+        <ReturnList data={filteredData} onStatusChange={handleStatusChange} />
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
   );
 }
