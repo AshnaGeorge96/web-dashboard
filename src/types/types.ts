@@ -1,5 +1,6 @@
 // src/types/types.ts
 export type ReturnRequest = {
+  _id: string;
   orderId: string;
   customerName: string;
   returnDate: string;

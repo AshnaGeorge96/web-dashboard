@@ -2,15 +2,15 @@
 
 import React from "react";
 import { ReturnRequest } from "../types/types";
-import { FaCheckCircle, FaTimesCircle, FaClock } from "react-icons/fa";
+import { FaCheckCircle, FaTimesCircle, FaClock, FaEdit } from "react-icons/fa";
 
 type Props = {
   data: ReturnRequest;
   onStatusChange: (id: string, status: 'Completed' | 'Rejected') => void;
+  onEdit: (returnRequest: ReturnRequest) => void; // new prop for editing
 };
 
-const ReturnCard: React.FC<Props> = ({ data, onStatusChange }) => {
-  // Determine badge color and icon
+const ReturnCard: React.FC<Props> = ({ data, onStatusChange, onEdit }) => {
   const statusStyles = {
     Pending: "bg-yellow-100 text-yellow-800",
     Completed: "bg-green-100 text-green-800",
@@ -48,23 +48,33 @@ const ReturnCard: React.FC<Props> = ({ data, onStatusChange }) => {
         </span>
       </div>
 
-      {/* Buttons to change status if pending */}
-      {data.status === "Pending" && (
-        <div className="mt-3 flex gap-2">
-          <button
-            onClick={() => onStatusChange(data.orderId, "Completed")}
-            className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 transition-colors duration-200"
-          >
-            Complete
-          </button>
-          <button
-            onClick={() => onStatusChange(data.orderId, "Rejected")}
-            className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors duration-200"
-          >
-            Reject
-          </button>
-        </div>
-      )}
+      {/* Buttons */}
+      <div className="mt-3 flex gap-2">
+        {data.status === "Pending" && (
+          <>
+            <button
+              onClick={() => onStatusChange(data.orderId, "Completed")}
+              className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 transition-colors duration-200"
+            >
+              Complete
+            </button>
+            <button
+              onClick={() => onStatusChange(data.orderId, "Rejected")}
+              className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors duration-200"
+            >
+              Reject
+            </button>
+          </>
+        )}
+
+        {/* Edit button (always visible) */}
+        <button
+          onClick={() => onEdit(data)}
+          className="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition-colors duration-200 flex items-center gap-1"
+        >
+          <FaEdit /> Edit
+        </button>
+      </div>
     </div>
   );
 };
