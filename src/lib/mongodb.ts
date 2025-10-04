@@ -1,14 +1,21 @@
-import { MongoClient } from "mongodb";
+// lib/mongodb.ts
+import { MongoClient, ServerApiVersion } from "mongodb";
 
-const uri = process.env.MONGODB_URI!;
-const options = {};
+const uri = process.env.MONGODB_URI;
+if (!uri) throw new Error("Please add your Mongo URI to .env.local");
 
-let client;
+const options = {
+  serverApi: {
+    version: ServerApiVersion.v1,
+    strict: true,
+    deprecationErrors: true,
+  },
+  tls: true,         // enforce TLS 1.2+
+  retryWrites: true, // recommended for Atlas
+};
+
+let client: MongoClient;
 let clientPromise: Promise<MongoClient>;
-
-if (!process.env.MONGODB_URI) {
-  throw new Error("Please add your Mongo URI to .env.local");
-}
 
 if (process.env.NODE_ENV === "development") {
   // Prevent multiple connections during hot reloads
