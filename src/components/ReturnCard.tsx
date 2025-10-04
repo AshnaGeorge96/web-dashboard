@@ -6,7 +6,7 @@ import { FaCheckCircle, FaTimesCircle, FaClock, FaEdit } from "react-icons/fa";
 
 type Props = {
   data: ReturnRequest;
-  onStatusChange: (id: string, status: 'Completed' | 'Rejected') => void;
+  onStatusChange: (id: string, status: "Pending" | "Completed" | "Rejected") => void;
   onEdit: (returnRequest: ReturnRequest) => void; // new prop for editing
 };
 
@@ -53,13 +53,13 @@ const ReturnCard: React.FC<Props> = ({ data, onStatusChange, onEdit }) => {
         {data.status === "Pending" && (
           <>
             <button
-              onClick={() => onStatusChange(data.orderId, "Completed")}
+              onClick={() => onStatusChange(data._id, "Completed")}
               className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 transition-colors duration-200"
             >
               Complete
             </button>
             <button
-              onClick={() => onStatusChange(data.orderId, "Rejected")}
+              onClick={() => onStatusChange(data._id, "Rejected")}
               className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors duration-200"
             >
               Reject
