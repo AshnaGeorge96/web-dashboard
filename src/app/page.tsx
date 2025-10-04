@@ -19,6 +19,10 @@ export default function Dashboard() {
   // Edit modal state
   const [editingReturn, setEditingReturn] = useState<ReturnRequest | null>(null);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
+
   // Fetch all returns
   const fetchReturns = async () => {
     try {
@@ -56,7 +60,6 @@ export default function Dashboard() {
       });
       if (!res.ok) throw new Error("Failed to add return");
 
-      // Reset form
       setCustomerName("");
       setReturnDate("");
       setPalletCount(1);
@@ -113,36 +116,32 @@ export default function Dashboard() {
   };
 
   // Delete a return
-const handleDeleteReturn = async (id: string) => {
-  if (!confirm("Are you sure you want to delete this return?")) return;
+  const handleDeleteReturn = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this return?")) return;
 
-  try {
-    const res = await fetch(`/api/returns/${id}`, { method: "DELETE" });
+    try {
+      const res = await fetch(`/api/returns/${id}`, { method: "DELETE" });
 
-    let data: any = {};
-    const contentType = res.headers.get("content-type");
-    if (contentType?.includes("application/json")) {
-      try {
-        data = await res.json();
-      } catch (err) {
-        console.warn("Failed to parse JSON response from DELETE:", err);
+      let data: any = {};
+      const contentType = res.headers.get("content-type");
+      if (contentType?.includes("application/json")) {
+        try {
+          data = await res.json();
+        } catch (err) {
+          console.warn("Failed to parse JSON response from DELETE:", err);
+        }
       }
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to delete return");
+      }
+
+      console.log("Return deleted:", id);
+      fetchReturns();
+    } catch (err) {
+      console.error("Error deleting return:", err);
     }
-
-    if (!res.ok) {
-      throw new Error(data.error || "Failed to delete return");
-    }
-
-    console.log("Return deleted:", id);
-    fetchReturns();
-  } catch (err) {
-    console.error("Error deleting return:", err);
-  }
-};
-
-
-
-
+  };
 
   // Filtered returns
   const filteredData = returns.filter(
@@ -150,6 +149,25 @@ const handleDeleteReturn = async (id: string) => {
       r.customerName.toLowerCase().includes(search.toLowerCase()) ||
       r.orderId.toLowerCase().includes(search.toLowerCase())
   );
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem);
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) setCurrentPage(currentPage - 1);
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+  };
+
+  // Reset page when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
 
   return (
     <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -266,11 +284,34 @@ const handleDeleteReturn = async (id: string) => {
 
         {/* Return List */}
         <ReturnList
-          data={filteredData}
+          data={currentItems}
           onStatusChange={handleStatusChange}
           onEdit={(r) => setEditingReturn(r)}
           onDelete={handleDeleteReturn}
         />
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex justify-center items-center gap-2 mt-4">
+            <button
+              onClick={handlePrevPage}
+              disabled={currentPage === 1}
+              className="px-4 py-2 bg-gray-300 dark:bg-gray-700 rounded disabled:opacity-50"
+            >
+              Prev
+            </button>
+            <span className="px-4 py-2 text-gray-900 dark:text-gray-100">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              onClick={handleNextPage}
+              disabled={currentPage === totalPages}
+              className="px-4 py-2 bg-gray-300 dark:bg-gray-700 rounded disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
+        )}
 
         {/* Edit Modal */}
         {editingReturn && (
