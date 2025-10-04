@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { v4 as uuidv4 } from "uuid";
 import ReturnList from "../components/ReturnList";
 import ReturnEdit from "@/components/ReturnEdit";
 import { ReturnRequest } from "../types/types";
@@ -11,7 +10,7 @@ export default function Dashboard() {
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(true);
 
-  // Form state
+  // Add form state
   const [customerName, setCustomerName] = useState("");
   const [returnDate, setReturnDate] = useState("");
   const [palletCount, setPalletCount] = useState<number>(1);
@@ -20,123 +19,80 @@ export default function Dashboard() {
   // Edit modal state
   const [editingReturn, setEditingReturn] = useState<ReturnRequest | null>(null);
 
-  // Fetch returns from API
-  // const fetchReturns = async () => {
-  //   try {
-  //     const res = await fetch("/api/returns");
-  //     if (!res.ok) throw new Error("Failed to fetch returns");
-
-  //     const data = await res.json();
-  //     console.log("Fetched returns from API:", data);
-
-  //     if (!Array.isArray(data)) {
-  //       console.error("API returned non-array data:", data);
-  //       setReturns([]);
-  //     } else {
-  //       setReturns(data);
-  //     }
-  //   } catch (err) {
-  //     console.error("Error fetching returns:", err);
-  //     setReturns([]);
-  //   }
-  // };
+  // Fetch all returns
   const fetchReturns = async () => {
-  try {
-    const res = await fetch("/api/returns");
-    if (!res.ok) throw new Error("Failed to fetch returns");
-    const data = await res.json();
-    console.log("Fetched returns:", data);
-    setReturns(data);
-  } catch (err) {
-    console.error(err);
-  }
-};
-
+    try {
+      const res = await fetch("/api/returns");
+      if (!res.ok) throw new Error("Failed to fetch returns");
+      const data = await res.json();
+      setReturns(data);
+    } catch (err) {
+      console.error("Error fetching returns:", err);
+    }
+  };
 
   useEffect(() => {
     fetchReturns();
   }, []);
 
   // Add new return
-  // const handleAddReturn = async (e: React.FormEvent) => {
-  //   e.preventDefault();
-
-  //   const newReturn: ReturnRequest = {
-  //     _id: uuidv4(), // temporary UUID
-  //     orderId: `ORD-${Date.now()}`,
-  //     customerName,
-  //     returnDate,
-  //     palletCount,
-  //     status: "Pending",
-  //     remarks: remarks || undefined,
-  //   };
-
-  //   try {
-  //     const res = await fetch("/api/returns", {
-  //       method: "POST",
-  //       body: JSON.stringify(newReturn),
-  //       headers: { "Content-Type": "application/json" },
-  //     });
-
-  //     if (!res.ok) throw new Error("Failed to add return");
-
-  //     const createdReturn = await res.json();
-  //     console.log("Return created:", createdReturn);
-
-  //     setCustomerName("");
-  //     setReturnDate("");
-  //     setPalletCount(1);
-  //     setRemarks("");
-
-  //     fetchReturns();
-  //   } catch (err) {
-  //     console.error("Error adding return:", err);
-  //   }
-  // };
   const handleAddReturn = async (e: React.FormEvent) => {
-  e.preventDefault();
-  const newReturn: ReturnRequest = {
-    _id: crypto.randomUUID(),
-    orderId: `ORD-${Date.now()}`,
-    customerName,
-    returnDate,
-    palletCount,
-    status: "Pending",
-    remarks: remarks || ""
-  };
+    e.preventDefault();
+    const newReturn: ReturnRequest = {
+      _id: crypto.randomUUID(),
+      orderId: `ORD-${Date.now()}`,
+      customerName,
+      returnDate,
+      palletCount,
+      status: "Pending",
+      remarks: remarks || "",
+    };
 
-  try {
-    const res = await fetch("/api/returns", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(newReturn),
-    });
-    if (!res.ok) throw new Error("Failed to add return");
-    console.log("Return created:", newReturn); // ✅ console log to verify
-    setCustomerName("");
-    setReturnDate("");
-    setPalletCount(1);
-    setRemarks("");
-    fetchReturns();
-  } catch (err) {
-    console.error(err);
-  }
-};
-
-
-  // Update existing return
-  const handleUpdateReturn = async (updatedReturn: ReturnRequest) => {
     try {
       const res = await fetch("/api/returns", {
-        method: "PUT",
-        body: JSON.stringify(updatedReturn),
+        method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newReturn),
+      });
+      if (!res.ok) throw new Error("Failed to add return");
+
+      // Reset form
+      setCustomerName("");
+      setReturnDate("");
+      setPalletCount(1);
+      setRemarks("");
+      fetchReturns();
+    } catch (err) {
+      console.error("Error adding return:", err);
+    }
+  };
+
+  // Unified edit/update function
+  const handleEditReturn = async (updatedReturn: ReturnRequest) => {
+    try {
+      const res = await fetch(`/api/returns/${updatedReturn._id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: updatedReturn.status,
+          customerName: updatedReturn.customerName,
+          returnDate: updatedReturn.returnDate,
+          palletCount: updatedReturn.palletCount,
+          remarks: updatedReturn.remarks,
+        }),
       });
 
-      if (!res.ok) throw new Error("Failed to update return");
+      let data: any = {};
+      try {
+        data = await res.json();
+      } catch {
+        data = {};
+      }
 
-      const updatedData = await res.json();
-      console.log("Return updated:", updatedData);
+      if (!res.ok) {
+        console.error("API error:", data);
+        throw new Error(data.error || "Failed to update return");
+      }
 
       setEditingReturn(null);
       fetchReturns();
@@ -145,26 +101,55 @@ export default function Dashboard() {
     }
   };
 
-  // Change status
-  const handleStatusChange = async (id: string, status: "Completed" | "Rejected") => {
-    const returnToUpdate = returns.find(r => r.orderId === id);
+  // Change status only
+  const handleStatusChange = async (
+    id: string,
+    newStatus: "Pending" | "Completed" | "Rejected"
+  ) => {
+    const returnToUpdate = returns.find((r) => r._id === id);
     if (!returnToUpdate) return;
-    await handleUpdateReturn({ ...returnToUpdate, status });
+
+    await handleEditReturn({ ...returnToUpdate, status: newStatus });
   };
 
-  // Edit button
-  const handleEditReturn = (returnRequest: ReturnRequest) => {
-    setEditingReturn(returnRequest);
-  };
+  // Delete a return
+const handleDeleteReturn = async (id: string) => {
+  if (!confirm("Are you sure you want to delete this return?")) return;
 
-  // Filtered list
-  const filteredData = Array.isArray(returns)
-    ? returns.filter(
-        (item) =>
-          item.customerName.toLowerCase().includes(search.toLowerCase()) ||
-          item.orderId.toLowerCase().includes(search.toLowerCase())
-      )
-    : [];
+  try {
+    const res = await fetch(`/api/returns/${id}`, { method: "DELETE" });
+
+    let data: any = {};
+    const contentType = res.headers.get("content-type");
+    if (contentType?.includes("application/json")) {
+      try {
+        data = await res.json();
+      } catch (err) {
+        console.warn("Failed to parse JSON response from DELETE:", err);
+      }
+    }
+
+    if (!res.ok) {
+      throw new Error(data.error || "Failed to delete return");
+    }
+
+    console.log("Return deleted:", id);
+    fetchReturns();
+  } catch (err) {
+    console.error("Error deleting return:", err);
+  }
+};
+
+
+
+
+
+  // Filtered returns
+  const filteredData = returns.filter(
+    (r) =>
+      r.customerName.toLowerCase().includes(search.toLowerCase()) ||
+      r.orderId.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -202,19 +187,19 @@ export default function Dashboard() {
           </div>
           <div className="p-4 bg-yellow-500 text-white rounded-lg shadow flex flex-col items-center">
             <span className="text-2xl font-bold">
-              {filteredData.filter(r => r.status === "Pending").length}
+              {filteredData.filter((r) => r.status === "Pending").length}
             </span>
             <span>Pending</span>
           </div>
           <div className="p-4 bg-green-500 text-white rounded-lg shadow flex flex-col items-center">
             <span className="text-2xl font-bold">
-              {filteredData.filter(r => r.status === "Completed").length}
+              {filteredData.filter((r) => r.status === "Completed").length}
             </span>
             <span>Completed</span>
           </div>
           <div className="p-4 bg-red-500 text-white rounded-lg shadow flex flex-col items-center">
             <span className="text-2xl font-bold">
-              {filteredData.filter(r => r.status === "Rejected").length}
+              {filteredData.filter((r) => r.status === "Rejected").length}
             </span>
             <span>Rejected</span>
           </div>
@@ -283,14 +268,15 @@ export default function Dashboard() {
         <ReturnList
           data={filteredData}
           onStatusChange={handleStatusChange}
-          onEdit={handleEditReturn}
+          onEdit={(r) => setEditingReturn(r)}
+          onDelete={handleDeleteReturn}
         />
 
-        {/* Return Edit Modal */}
+        {/* Edit Modal */}
         {editingReturn && (
           <ReturnEdit
             returnData={editingReturn}
-            onSave={handleUpdateReturn}
+            onSave={handleEditReturn}
             onCancel={() => setEditingReturn(null)}
           />
         )}
