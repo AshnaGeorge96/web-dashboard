@@ -1,35 +1,31 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { ReturnRequest } from "../types/types";
 import ReturnList from "../components/ReturnList";
 import ReturnEdit from "@/components/ReturnEdit";
-import { ReturnRequest } from "../types/types";
+import { motion, AnimatePresence } from "framer-motion";
+import { Search, PlusCircle, X } from "lucide-react";
 
 export default function Dashboard() {
   const [returns, setReturns] = useState<ReturnRequest[]>([]);
   const [search, setSearch] = useState("");
-  const [showForm, setShowForm] = useState(true);
-
-  // Add form state
+  const [showForm, setShowForm] = useState(false);
   const [customerName, setCustomerName] = useState("");
   const [returnDate, setReturnDate] = useState("");
   const [palletCount, setPalletCount] = useState<number>(1);
   const [remarks, setRemarks] = useState("");
-
-  // Edit modal state
   const [editingReturn, setEditingReturn] = useState<ReturnRequest | null>(null);
-
-  // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
 
-  // Fetch all returns
+  // Fetch returns
   const fetchReturns = async () => {
     try {
       const res = await fetch("/api/returns");
       if (!res.ok) throw new Error("Failed to fetch returns");
       const data = await res.json();
-      setReturns(data);
+      setReturns(data.reverse());
     } catch (err) {
       console.error("Error fetching returns:", err);
     }
@@ -64,39 +60,22 @@ export default function Dashboard() {
       setReturnDate("");
       setPalletCount(1);
       setRemarks("");
+      setShowForm(false);
       fetchReturns();
     } catch (err) {
       console.error("Error adding return:", err);
     }
   };
 
-  // Unified edit/update function
+  // Edit or update return
   const handleEditReturn = async (updatedReturn: ReturnRequest) => {
     try {
       const res = await fetch(`/api/returns/${updatedReturn._id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          status: updatedReturn.status,
-          customerName: updatedReturn.customerName,
-          returnDate: updatedReturn.returnDate,
-          palletCount: updatedReturn.palletCount,
-          remarks: updatedReturn.remarks,
-        }),
+        body: JSON.stringify(updatedReturn),
       });
-
-      let data: any = {};
-      try {
-        data = await res.json();
-      } catch {
-        data = {};
-      }
-
-      if (!res.ok) {
-        console.error("API error:", data);
-        throw new Error(data.error || "Failed to update return");
-      }
-
+      if (!res.ok) throw new Error("Failed to update return");
       setEditingReturn(null);
       fetchReturns();
     } catch (err) {
@@ -109,204 +88,209 @@ export default function Dashboard() {
     id: string,
     newStatus: "Pending" | "Completed" | "Rejected"
   ) => {
-    const returnToUpdate = returns.find((r) => r._id === id);
-    if (!returnToUpdate) return;
-
-    await handleEditReturn({ ...returnToUpdate, status: newStatus });
+    const target = returns.find((r) => r._id === id);
+    if (!target) return;
+    await handleEditReturn({ ...target, status: newStatus });
   };
 
   // Delete a return
   const handleDeleteReturn = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this return?")) return;
-
+    if (!confirm("Delete this return?")) return;
     try {
       const res = await fetch(`/api/returns/${id}`, { method: "DELETE" });
-
-      let data: any = {};
-      const contentType = res.headers.get("content-type");
-      if (contentType?.includes("application/json")) {
-        try {
-          data = await res.json();
-        } catch (err) {
-          console.warn("Failed to parse JSON response from DELETE:", err);
-        }
-      }
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to delete return");
-      }
-
-      console.log("Return deleted:", id);
+      if (!res.ok) throw new Error("Failed to delete return");
       fetchReturns();
     } catch (err) {
       console.error("Error deleting return:", err);
     }
   };
 
-  // Filtered returns
-  const filteredData = returns.filter(
+  // Filter + Pagination
+  const filtered = returns.filter(
     (r) =>
       r.customerName.toLowerCase().includes(search.toLowerCase()) ||
       r.orderId.toLowerCase().includes(search.toLowerCase())
   );
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const currentItems = filtered.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
-  // Pagination logic
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem);
-
-  const handlePrevPage = () => {
-    if (currentPage > 1) setCurrentPage(currentPage - 1);
-  };
-
-  const handleNextPage = () => {
-    if (currentPage < totalPages) setCurrentPage(currentPage + 1);
-  };
-
-  // Reset page when search changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [search]);
+  useEffect(() => setCurrentPage(1), [search]);
 
   return (
     <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Sidebar */}
-      <aside className="w-64 bg-gray-800 text-white p-6 flex-shrink-0">
-        <h2 className="text-2xl font-bold mb-6">Dashboard</h2>
+      <aside className="w-64 bg-gray-800 text-white p-6 flex-shrink-0 shadow-lg">
+        <h2 className="text-2xl font-bold mb-8">KNWO 2.0</h2>
         <nav className="space-y-2">
-          <a href="#" className="block py-2 px-3 rounded hover:bg-gray-700">Home</a>
-          <a href="#" className="block py-2 px-3 rounded hover:bg-gray-700">Returns</a>
-          <a href="#" className="block py-2 px-3 rounded hover:bg-gray-700">Reports</a>
+          <a href="#" className="block py-2 px-3 rounded hover:bg-gray-700">
+            Dashboard
+          </a>
+          <a href="#" className="block py-2 px-3 rounded hover:bg-gray-700">
+            Returns
+          </a>
+          <a href="#" className="block py-2 px-3 rounded hover:bg-gray-700">
+            Reports
+          </a>
+          <a href="#" className="block py-2 px-3 rounded hover:bg-gray-700">
+            Settings
+          </a>
         </nav>
       </aside>
 
-      {/* Main content */}
+      {/* Main */}
       <main className="flex-1 p-8">
-        {/* Header + search */}
-        <header className="mb-6 flex flex-col sm:flex-row sm:justify-between sm:items-center">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-4 sm:mb-0">
+        {/* Header */}
+        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
             Pallet Return Dashboard
           </h1>
-          <input
-            type="text"
-            placeholder="Search by customer or order ID"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full sm:w-64 p-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-          />
+
+          <div className="relative mt-4 sm:mt-0">
+            <Search className="absolute left-3 top-3 text-gray-500" size={18} />
+            <input
+              type="text"
+              placeholder="Search..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-10 pr-3 py-2 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
         </header>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="p-4 bg-blue-500 text-white rounded-lg shadow flex flex-col items-center">
-            <span className="text-2xl font-bold">{filteredData.length}</span>
-            <span>Total Returns</span>
-          </div>
-          <div className="p-4 bg-yellow-500 text-white rounded-lg shadow flex flex-col items-center">
-            <span className="text-2xl font-bold">
-              {filteredData.filter((r) => r.status === "Pending").length}
-            </span>
-            <span>Pending</span>
-          </div>
-          <div className="p-4 bg-green-500 text-white rounded-lg shadow flex flex-col items-center">
-            <span className="text-2xl font-bold">
-              {filteredData.filter((r) => r.status === "Completed").length}
-            </span>
-            <span>Completed</span>
-          </div>
-          <div className="p-4 bg-red-500 text-white rounded-lg shadow flex flex-col items-center">
-            <span className="text-2xl font-bold">
-              {filteredData.filter((r) => r.status === "Rejected").length}
-            </span>
-            <span>Rejected</span>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-8">
+          {[
+            { label: "Total Returns", value: filtered.length, color: "bg-blue-500" },
+            {
+              label: "Pending",
+              value: filtered.filter((r) => r.status === "Pending").length,
+              color: "bg-yellow-500",
+            },
+            {
+              label: "Completed",
+              value: filtered.filter((r) => r.status === "Completed").length,
+              color: "bg-green-500",
+            },
+            {
+              label: "Rejected",
+              value: filtered.filter((r) => r.status === "Rejected").length,
+              color: "bg-red-500",
+            },
+          ].map((stat) => (
+            <motion.div
+              key={stat.label}
+              whileHover={{ scale: 1.05 }}
+              className={`${stat.color} text-white p-4 rounded-xl shadow flex flex-col items-center`}
+            >
+              <span className="text-3xl font-bold">{stat.value}</span>
+              <span>{stat.label}</span>
+            </motion.div>
+          ))}
         </div>
 
-        {/* Toggle Add Form */}
+        {/* Add New Return Button */}
         <button
           onClick={() => setShowForm(!showForm)}
-          className="mb-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors duration-200"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition-all"
         >
-          {showForm ? "Hide Form" : "Add New Return"}
+          {showForm ? (
+            <>
+              <X size={18} /> Close Form
+            </>
+          ) : (
+            <>
+              <PlusCircle size={18} /> Add New Return
+            </>
+          )}
         </button>
 
         {/* Add Return Form */}
-        {showForm && (
-          <form
-            onSubmit={handleAddReturn}
-            className="mb-6 bg-white dark:bg-gray-800 p-6 rounded-lg shadow transition-all duration-300"
-          >
-            <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-gray-100">
-              Add New Return
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <input
-                type="text"
-                placeholder="Customer Name"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                required
-                className="p-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-              />
-              <input
-                type="date"
-                value={returnDate}
-                onChange={(e) => setReturnDate(e.target.value)}
-                required
-                className="p-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-              />
-              <input
-                type="number"
-                placeholder="Pallet Count"
-                value={palletCount}
-                onChange={(e) => setPalletCount(Number(e.target.value))}
-                min={1}
-                required
-                className="p-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-              />
-              <input
-                type="text"
-                placeholder="Remarks (optional)"
-                value={remarks}
-                onChange={(e) => setRemarks(e.target.value)}
-                className="p-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-              />
-            </div>
-            <button
-              type="submit"
-              className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors duration-200"
+        <AnimatePresence>
+          {showForm && (
+            <motion.form
+              onSubmit={handleAddReturn}
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className="mt-6 bg-white dark:bg-gray-800 p-6 rounded-lg shadow space-y-4"
             >
-              Add Return
-            </button>
-          </form>
-        )}
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                Add New Return
+              </h2>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <input
+                  type="text"
+                  placeholder="Customer Name"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  required
+                  className="p-2 rounded border dark:border-gray-700 bg-gray-50 dark:bg-gray-900"
+                />
+                <input
+                  type="date"
+                  value={returnDate}
+                  onChange={(e) => setReturnDate(e.target.value)}
+                  required
+                  className="p-2 rounded border dark:border-gray-700 bg-gray-50 dark:bg-gray-900"
+                />
+                <input
+                  type="number"
+                  placeholder="Pallet Count"
+                  value={palletCount}
+                  min={1}
+                  onChange={(e) => setPalletCount(Number(e.target.value))}
+                  required
+                  className="p-2 rounded border dark:border-gray-700 bg-gray-50 dark:bg-gray-900"
+                />
+                <input
+                  type="text"
+                  placeholder="Remarks (optional)"
+                  value={remarks}
+                  onChange={(e) => setRemarks(e.target.value)}
+                  className="p-2 rounded border dark:border-gray-700 bg-gray-50 dark:bg-gray-900"
+                />
+              </div>
+              <button
+                type="submit"
+                className="mt-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+              >
+                Submit
+              </button>
+            </motion.form>
+          )}
+        </AnimatePresence>
 
         {/* Return List */}
-        <ReturnList
-          data={currentItems}
-          onStatusChange={handleStatusChange}
-          onEdit={(r) => setEditingReturn(r)}
-          onDelete={handleDeleteReturn}
-        />
+        <div className="mt-8">
+          <ReturnList
+            data={currentItems}
+            onStatusChange={handleStatusChange}
+            onEdit={(r) => setEditingReturn(r)}
+            onDelete={handleDeleteReturn}
+          />
+        </div>
 
-        {/* Pagination Controls */}
+        {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex justify-center items-center gap-2 mt-4">
+          <div className="flex justify-center items-center gap-3 mt-6">
             <button
-              onClick={handlePrevPage}
+              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
               disabled={currentPage === 1}
-              className="px-4 py-2 bg-gray-300 dark:bg-gray-700 rounded disabled:opacity-50"
+              className="px-3 py-1 bg-gray-300 dark:bg-gray-700 rounded disabled:opacity-50"
             >
               Prev
             </button>
-            <span className="px-4 py-2 text-gray-900 dark:text-gray-100">
+            <span className="text-gray-900 dark:text-gray-100">
               Page {currentPage} of {totalPages}
             </span>
             <button
-              onClick={handleNextPage}
+              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
               disabled={currentPage === totalPages}
-              className="px-4 py-2 bg-gray-300 dark:bg-gray-700 rounded disabled:opacity-50"
+              className="px-3 py-1 bg-gray-300 dark:bg-gray-700 rounded disabled:opacity-50"
             >
               Next
             </button>
